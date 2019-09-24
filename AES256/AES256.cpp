@@ -2,11 +2,8 @@
 #include <vector>
 #include <iostream>
 #include <string>
-#include <cstddef>
-#include <unordered_map>
 #include <string>
 #include <fstream>
-#include <set>
 #include <random>
 #include <math.h>
 
@@ -234,7 +231,8 @@ void KeyExpansion(unsigned char* key) {
 	}
 }
 
-unsigned char ** Cipher(unsigned char input[4 * Nb]) {
+unsigned char * Cipher(unsigned char input[4 * Nb]) {
+	unsigned char out[16];
 	unsigned char ** state;
 	state = new unsigned char* [4];
 	for (int i = 0; i < 4; ++i)
@@ -252,7 +250,12 @@ unsigned char ** Cipher(unsigned char input[4 * Nb]) {
 	state = SubBytes(state);
 	state = ShiftRows(state);
 	state = AddRoundKey(state, Nr * Nb);
-	return state;
+
+	for (int i = 0; i < 4; ++i)
+		for (int j = 0; j < Nb; ++j)
+			out[i * 4 + j] = state[j][i];
+	delete[] state;
+	return out;
 }
 
 unsigned char** InvSubBytes(unsigned char** state) {
@@ -321,6 +324,73 @@ unsigned char ** InvCipher(unsigned char input[4 * Nb]) {
 	return state;
 }
 
+void ConvertToCharArray(unsigned char* arr, long long a) {
+	for (int i = 0; i < 8; ++i)
+		arr[i] = (unsigned char)((((unsigned long long) a) >> (56 - (8 * i))) & 0xFFu);
+}
+
+unsigned char* Xor (unsigned char * a, unsigned char * b){
+	unsigned char c[16];
+	for (int i = 0; i < 16; ++i) c[i] = (unsigned char)(a[i] ^ b[i]);
+	return c;
+}
+
+void CTRE(unsigned char * key) {
+	long long nnc = 7626731234; long long ctr = 0;
+	unsigned char arr[16];
+	unsigned char arr2[16];
+	unsigned char ans[16];
+	ConvertToCharArray(&arr[0], nnc);
+	ConvertToCharArray(&arr[8], ctr);
+	ifstream input("C:\\im.png", ios::binary);
+	ofstream output("C:\\enc.png", ios::out | ios::binary);
+	vector<unsigned char> outBuffer;
+	vector<unsigned char> inBuffer(istreambuf_iterator<char>(input), {});
+	while (inBuffer.size() % 16 != 0) inBuffer.push_back(0);
+
+	KeyExpansion(key);
+
+	for (long long i = 0; i < inBuffer.size(); i+=16) {
+		ConvertToCharArray(&arr[8], ctr);
+		for (int j = 0; j < 16; ++j) arr2[j] = inBuffer[i + j];
+		unsigned char* res = Cipher(arr);
+		for (int j = 0; j < 16; ++j) ans[j] = res[j] ^ arr2[j];
+		for(int j = 0; j < 16; ++j) outBuffer.push_back(ans[j]);
+		++ctr;
+	}
+	output.write((char*)&outBuffer[0], outBuffer.size());
+	output.close();
+	input.close();
+}
+
+void CTRD(unsigned char* key) {
+	long long nnc = 7626731234; long long ctr = 0;
+	unsigned char arr[16];
+	unsigned char arr2[16];
+	unsigned char ans[16];
+	ConvertToCharArray(&arr[0], nnc);
+	ConvertToCharArray(&arr[8], ctr);
+	ifstream input("C:\\enc.png", ios::binary);
+	ofstream output("C:\\dec.png", ios::out | ios::binary);
+	vector<unsigned char> outBuffer;
+	vector<unsigned char> inBuffer(istreambuf_iterator<char>(input), {});
+
+	KeyExpansion(key);
+
+	for (long long i = 0; i < inBuffer.size(); i += 16) {
+		ConvertToCharArray(&arr[8], ctr);
+		for (int j = 0; j < 16; ++j) arr2[j] = inBuffer[i + j];
+		unsigned char* res = Cipher(arr);
+		for (int j = 0; j < 16; ++j) ans[j] = res[j] ^ arr2[j];
+		for (int j = 0; j < 16; ++j) outBuffer.push_back(ans[j]);
+		++ctr;
+	}
+	while (outBuffer.back() == 0) outBuffer.pop_back();
+	output.write((char*)& outBuffer[0], outBuffer.size());
+	output.close();
+	input.close();
+}
+
 
 int main() {
 	unsigned char input[16] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff };
@@ -333,8 +403,7 @@ int main() {
 	for (int i = 0; i < 4; ++i)
 		c[i] = new unsigned char [4];
 
-	KeyExpansion(key);
-
+	/*
 	c = Cipher(input);
 	for (int i = 0; i < 4; ++i)
 		for (int j = 0; j < Nb; ++j)
@@ -348,7 +417,8 @@ int main() {
 	for (int i = 0; i < 16; ++i) cout << (int)input[i];
 	cout << '\n';
 	for (int i = 0; i < 16; ++i) cout << (int)iinput[i];
-	cout << '\n';
+	cout << '\n';  */
+	CTRD(key);
 
 	return 0;
 }
